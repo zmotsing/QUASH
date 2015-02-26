@@ -4,6 +4,8 @@
 #include <string.h>
 #include <sys/wait.h>
 
+extern char **environ;
+
 char* prompt_user()
 {
 	int bytes_in;
@@ -43,10 +45,12 @@ int main(int argc, char *argv[])
 			if(status == 0)
 				input = prompt_user();
 		}
+
 		//Child process
 		if(child_pid==0)
 		{
-			execvp(input, argv);
+			if(execvpe(input, argv, environ) == -1)
+				printf("Error: command not on path.\n");
 			
 			exit(0);
 		}
