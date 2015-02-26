@@ -1,41 +1,53 @@
 #include <stdio.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <iostream>
 #include <stdlib.h>
 #include <unistd.h>
-#include <strings.h>
-#include <errno.h>
-#include <sys/wait.h>
-
-#define BSIZE 256
-#define BASH_EXEC  "/bin/bash"
-#define FIND_EXEC  "/bin/find"
-#define XARGS_EXEC "/usr/bin/xargs"
-#define GREP_EXEC  "/bin/grep"
-#define SORT_EXEC  "/bin/sort"
-#define HEAD_EXEC  "/usr/bin/head"
+#include <string.h>
 
 int main(int argc, char *argv[])
 {
-	pid_t child_pid;
-	printf ("the main program process ID is %d\n", (int)getpid());
-	bool done = false;
-	while(!done)
-		
-		/* Duplicate this process. */
+	int bytes_in;
+	size_t bsize = 256;
+	char *input;
+
+	bool run = true;
+	while(run)
+	{
+		printf("[QUASH]$ ");
+		input = (char *) malloc (bsize + 1);
+		bytes_in = getline(&input, &bsize, stdin);
+	
+		if(bytes_in == -1)
+			printf("Error reading input.\n");
+		else
+			input[strlen(input)-1] = 0;
+
+		pid_t child_pid;
 		child_pid = fork();
-		if(child_pid != 0)
-			/* This is the parent process. */
+
+		if(child_pid!=0)
 			return child_pid;
 		else
 		{
-			/* Now execute PROGRAM, searching for it in the path. */
-			execvp("ls", argv);
-			/* The execvp function returns only if an error occurs. */
-			fprintf(stderr, "\nError execing find. ERROR#%d\n", errno);
-			abort();
+			if(strcmp(input, "head") == 0)
+				execvp("head", argv);
+			else if(strcmp(input, "sort") == 0)
+				execvp("sort", argv);
+			else if(strcmp(input, "grep") == 0)
+				execvp("grep", argv);
+			else if(strcmp(input, "xargs") == 0)
+				execvp("xargs", argv);
+			else if(strcmp(input, "find") == 0)
+				execvp("find", argv);
+			else if(strcmp(input, "bash") == 0)
+				execvp("bash", argv);
+			else if(strcmp(input, "ls") == 0)
+				execvp("ls", argv);
+			else
+				run = false;
+
+			exit(0);
 		}
 	}
+	
 	return 0;
 }

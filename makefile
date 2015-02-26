@@ -1,4 +1,8 @@
-all:
-	g++ quash.c -o quash
+quash:quash.o
+	g++ quash.o -o quash
+
+quash.o:quash.c
+	g++ -c -g quash.c
+
 clean:
-	rm *o quash
+	rm quash *.o *~
