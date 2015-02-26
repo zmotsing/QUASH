@@ -6,29 +6,30 @@
 
 extern char **environ;
 
-char* prompt_user()
+void prompt_user(char *arr_input[])
 {
 	int bytes_in;
 	size_t bsize = 256;
-	char *input;
+	char* str_input;
 
 	printf("[QUASH]$ ");
-	input = (char *) malloc (bsize + 1);
-	bytes_in = getline(&input, &bsize, stdin);
+	str_input = (char *) malloc (bsize + 1);
+	bytes_in = getline(&str_input, &bsize, stdin);
 
 	if(bytes_in == -1)
 		printf("Error reading input.\n");
-	else
-		input[strlen(input)-1] = 0;
 
-	return input;
+	int i=0;
+	arr_input[i] = strtok(str_input," \n");
+
+	while(arr_input[i] != NULL)
+		arr_input[++i] = strtok(NULL," \n");
 }
 
 int main(int argc, char *argv[])
 {
-	char* input;
-
-	input = prompt_user();
+	char* input[100];
+	prompt_user(input);
 
 	bool run = true;
 	while(run)
@@ -43,13 +44,13 @@ int main(int argc, char *argv[])
 			waitpid(child_pid, &status, 0);
 
 			if(status == 0)
-				input = prompt_user();
+				prompt_user(input);
 		}
 
 		//Child process
 		if(child_pid==0)
 		{
-			if(execvpe(input, argv, environ) == -1)
+			if(execvpe(input[0], input, environ) == -1)
 				printf("Error: command not on path.\n");
 			
 			exit(0);
