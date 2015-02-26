@@ -48,7 +48,24 @@ int main(int argc, char *argv[])
 		{
 			execvp(input, argv);
 			
-			exit(0);
+		/*
+			if(strcmp(input, "head") == 0)
+				execvp("head", argv);
+			else if(strcmp(input, "sort") == 0)
+				execvp("sort", argv);
+			else if(strcmp(input, "grep") == 0)
+				execvp("grep", argv);
+			else if(strcmp(input, "xargs") == 0)
+				execvp("xargs", argv);
+			else if(strcmp(input, "find") == 0)
+				execvp("find", argv);
+			else if(strcmp(input, "bash") == 0)
+				execvp("bash", argv);
+			else if(strcmp(input, "ls") == 0)
+				execvp("ls", argv);
+			else
+				exit(0);
+			*/
 		}
 	}
 	
