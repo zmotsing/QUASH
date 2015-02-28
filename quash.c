@@ -28,9 +28,6 @@ bool prompt_user(char *arr_input[])
 	while(arr_input[i] != NULL)
 		arr_input[++i] = strtok(NULL," \n");
 		
-	if(strcmp(arr_input[0],"quit")==0 || strcmp(arr_input[0],"exit")==0)
-		exit(0);
-
 	/* Check to see if this is a background process */
 	bool bg_proc = false;
 
@@ -52,50 +49,48 @@ bool prompt_user(char *arr_input[])
 
 int main(int argc, char *argv[])
 {
-	char* input[100];
-
-	bool bg_proc = prompt_user(input);	
-
-	bool run = true;
-	while(run)
+	while(true)
 	{
-		pid_t child_pid;
-		child_pid = fork();
+		char* input[100];
+		bool bg_proc = prompt_user(input);	
 
-		/* Parent process */
-		if(child_pid!=0)
+		if(strcmp(input[0],"quit")==0 || strcmp(input[0],"exit")==0)
 		{
+			exit(0);
+		}
+		else if(strcmp(input[0], "cd")==0)
+		{
+			if(input[1] == NULL)
+				chdir(getenv("HOME"));
+			else
+				chdir(input[1]);
+		}	
+		else 
+		{
+			pid_t child_pid;
+			child_pid = fork();
+
+			/* Child process */
+			if(child_pid==0)
+			{
+				/* Execute the command */
+				if(execvpe(input[0], input, environ) == -1)
+					printf("Error: command \"%s\" not on path.\n", input[0]);
+
+				exit(0);
+			}
+
 			/* Wait for child to finish unless running in the background */
 			int status = 0;
 			
 			if(!bg_proc)
 				waitpid(child_pid, &status, 0);
-			
-			if(status == 0)
-			{			
-				/* Reset the input */
-				/* TODO: Fix memory leak here */
-				int i;
-				for(i = 0; i<100; i++)
-					input[i] = 0;
-
-				bg_proc = prompt_user(input);
-		
-				/* Stop child to quit */
-				//if(!run)
-					//kill(getppid(),SIGCHLD);
-			}
 		}
 
-		/* Child process */
-		if(child_pid==0)
-		{
-			/* Execute the command */
-			if(execvpe(input[0], input, environ) == -1)
-				printf("Error: command \"%s\" not on path.\n", input[0]);
-			
-			exit(0);
-		}
+		/* Reset the input */
+		int i;
+		for(i = 0; i<100; i++)
+			input[i] = 0;
 	}
 	
 	return 0;
