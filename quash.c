@@ -14,7 +14,7 @@ bool prompt_user(char *arr_input[])
 	char* str_input;
 
 	/* Get the input from the user */
-	printf("$ ");
+	printf("[%s]$ ", get_current_dir_name());
 	str_input = (char *) malloc (bsize + 1);
 	bytes_in = getline(&str_input, &bsize, stdin);
 
@@ -63,7 +63,8 @@ int main(int argc, char *argv[])
 			if(input[1] == NULL)
 				chdir(getenv("HOME"));
 			else
-				chdir(input[1]);
+				if(chdir(input[1]) == -1)
+					printf("No such file or directory \"%s\"\n", input[1]);
 		}	
 		else 
 		{
