@@ -47,32 +47,46 @@ bool prompt_user(char *arr_input[])
 	return bg_proc;
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char *argv[], char *envp[])
 {
 	while(true)
 	{
 		char* input[100];
 		bool bg_proc = prompt_user(input);	
 
-		if(strcmp(input[0],"quit")==0 || strcmp(input[0],"exit")==0)
+		if(strcmp(input[0],"quit") == 0 || strcmp(input[0],"exit") == 0)
 		{
 			exit(0);
 		}
-		else if(strcmp(input[0], "cd")==0)
+		else if(strcmp(input[0], "cd") == 0)
 		{
 			if(input[1] == NULL)
 				chdir(getenv("HOME"));
 			else
 				if(chdir(input[1]) == -1)
 					printf("No such file or directory \"%s\"\n", input[1]);
-		}	
-		else 
+		}
+		else if(strcmp(input[0], "echo") == 0)
+		{
+			if(input[1] != NULL)
+			{
+				char* target = input[1];
+			
+				if(target[0] == '$')
+					target = getenv(++target);
+				
+				printf("%s\n\n", target);
+			}
+			else
+				printf("\n\n");
+		}
+		else
 		{
 			pid_t child_pid;
 			child_pid = fork();
 
 			/* Child process */
-			if(child_pid==0)
+			if(child_pid == 0)
 			{
 				/* Execute the command */
 				if(execvpe(input[0], input, environ) == -1)
@@ -83,15 +97,14 @@ int main(int argc, char *argv[])
 
 			/* Wait for child to finish unless running in the background */
 			int status = 0;
-			
 			if(!bg_proc)
 				waitpid(child_pid, &status, 0);
 		}
 
 		/* Reset the input */
 		int i;
-		for(i = 0; i<100; i++)
-			input[i] = 0;
+		while(input[i] != NULL)
+			input[i++] = NULL;
 	}
 	
 	return 0;
