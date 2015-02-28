@@ -29,16 +29,34 @@ bool prompt_user(char *arr_input[])
 		arr_input[++i] = strtok(NULL," \n");
 		
 	if(strcmp(arr_input[0],"quit")==0 || strcmp(arr_input[0],"exit")==0)
-		return false;
+		exit(0);
+
+	/* Check to see if this is a background process */
+	bool bg_proc = false;
+
+	i=0;
+	while(arr_input[i] != NULL)
+	{
+		if(strcmp(arr_input[i], "&") == 0)
+		{
+			bg_proc = true;
+			arr_input[i] = 0;	
+			break;
+		}
 		
-	return true;
+		i++;
+	}	
+		
+	return bg_proc;
 }
 
 int main(int argc, char *argv[])
 {
 	char* input[100];
-	
-	bool run = prompt_user(input);
+
+	bool bg_proc = prompt_user(input);	
+
+	bool run = true;
 	while(run)
 	{
 		pid_t child_pid;
@@ -47,21 +65,26 @@ int main(int argc, char *argv[])
 		/* Parent process */
 		if(child_pid!=0)
 		{
-			/* Wait for child to finish */
-			int status;
-			waitpid(child_pid, &status, 0);
-
-			/* Reset the input */
-			int i;
-			for(i = 0; i<100; i++)
-				input[i] = 0;
-
+			/* Wait for child to finish unless running in the background */
+			int status = 0;
+			
+			if(!bg_proc)
+				waitpid(child_pid, &status, 0);
+			
 			if(status == 0)
-				run = prompt_user(input);
+			{			
+				/* Reset the input */
+				/* TODO: Fix memory leak here */
+				int i;
+				for(i = 0; i<100; i++)
+					input[i] = 0;
+
+				bg_proc = prompt_user(input);
 		
-			/* Stop child to quit */
-			if(!run)
-				kill(getppid(),SIGCHLD);
+				/* Stop child to quit */
+				//if(!run)
+					//kill(getppid(),SIGCHLD);
+			}
 		}
 
 		/* Child process */
@@ -77,7 +100,3 @@ int main(int argc, char *argv[])
 	
 	return 0;
 }
-
-
-
-
