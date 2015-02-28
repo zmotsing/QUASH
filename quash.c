@@ -37,7 +37,7 @@ bool prompt_user(char *arr_input[])
 		if(strcmp(arr_input[i], "&") == 0)
 		{
 			bg_proc = true;
-			arr_input[i] = 0;	
+			arr_input[i] = NULL;	
 			break;
 		}
 		
@@ -54,10 +54,12 @@ int main(int argc, char *argv[], char *envp[])
 		char* input[100];
 		bool bg_proc = prompt_user(input);	
 
+		/* quit and exit */
 		if(strcmp(input[0],"quit") == 0 || strcmp(input[0],"exit") == 0)
 		{
 			exit(0);
 		}
+		/* cd */
 		else if(strcmp(input[0], "cd") == 0)
 		{
 			if(input[1] == NULL)
@@ -66,6 +68,7 @@ int main(int argc, char *argv[], char *envp[])
 				if(chdir(input[1]) == -1)
 					printf("No such file or directory \"%s\"\n", input[1]);
 		}
+		/* echo */
 		else if(strcmp(input[0], "echo") == 0)
 		{
 			if(input[1] != NULL)
@@ -75,10 +78,10 @@ int main(int argc, char *argv[], char *envp[])
 				if(target[0] == '$')
 					target = getenv(++target);
 				
-				printf("%s\n\n", target);
+				printf("%s\n", target);
 			}
 			else
-				printf("\n\n");
+				printf("\n");
 		}
 		else
 		{
@@ -99,10 +102,21 @@ int main(int argc, char *argv[], char *envp[])
 			int status = 0;
 			if(!bg_proc)
 				waitpid(child_pid, &status, 0);
+			else
+				printf("[%i] %i running in background.\n", 0, child_pid);
+
+			/* Check if background processes have finished */
+			int id = 0;
+			do
+			{
+				id = waitpid(-1, &status, WNOHANG);
+				if(id > 0)
+					printf("[%i] %i finished %s.\n", 0, id, "command");		 
+			} while (id > 0);
 		}
 
 		/* Reset the input */
-		int i;
+		int i=0;
 		while(input[i] != NULL)
 			input[i++] = NULL;
 	}
