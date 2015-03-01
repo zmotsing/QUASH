@@ -17,6 +17,7 @@ struct job
 
 job* last_job;
 
+/* Cleaning up background jobs after they have ended */
 void remove_job(job* bg_job)
 {
 	if(bg_job == last_job)
@@ -148,7 +149,7 @@ int main(int argc, char *argv[], char *envp[])
 
 				exit(0);
 			}
-/* Parent process */
+			/* Parent process */
 			else
 			{
 				/* Wait for child to finish unless running in the background */
