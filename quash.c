@@ -7,6 +7,39 @@
 
 extern char **environ;
 
+struct job 
+{
+	int jid;
+	int pid;
+	char* cmd;
+	job* prev;
+};
+
+job* last_job;
+
+void remove_job(job* bg_job)
+{
+	if(bg_job == last_job)
+	{
+		last_job = bg_job->prev;
+		free(bg_job);
+		return;
+	}
+
+	struct job* tmp_job = last_job;
+	while(tmp_job->prev != NULL)
+	{
+		if(tmp_job->prev == bg_job)
+		{
+			tmp_job->prev = bg_job->prev;
+			free(bg_job);
+			return;
+		}		
+
+		tmp_job = tmp_job->prev;
+	}
+}
+
 bool prompt_user(char *arr_input[])
 {
 	int bytes_in;
@@ -49,6 +82,7 @@ bool prompt_user(char *arr_input[])
 
 int main(int argc, char *argv[], char *envp[])
 {
+	last_job = NULL;
 	while(true)
 	{
 		char* input[100];
@@ -97,22 +131,52 @@ int main(int argc, char *argv[], char *envp[])
 
 				exit(0);
 			}
-
-			/* Wait for child to finish unless running in the background */
-			int status = 0;
-			if(!bg_proc)
-				waitpid(child_pid, &status, 0);
+			/* Parent process */
 			else
-				printf("[%i] %i running in background.\n", 0, child_pid);
-
-			/* Check if background processes have finished */
-			int id = 0;
-			do
 			{
-				id = waitpid(-1, &status, WNOHANG);
-				if(id > 0)
-					printf("[%i] %i finished %s.\n", 0, id, "command");		 
-			} while (id > 0);
+				/* Wait for child to finish unless running in the background */
+				int status = 0;
+				if(!bg_proc)
+					waitpid(child_pid, &status, 0);
+				else
+				{
+					int id = 1;
+					if(last_job)
+						id = last_job->jid + 1;
+
+					struct job* next = (struct job *)malloc(sizeof (struct job));
+					next->jid = id;
+					next->pid = child_pid;
+					next->cmd = input[0];
+					next->prev = last_job;					
+
+					last_job = next;
+
+					printf("[%i] %i running in background.\n", last_job->jid, last_job->pid);
+				}
+
+				/* Check if background processes have finished */
+				int id = 0;
+				do
+				{
+					id = waitpid(-1, &status, WNOHANG);
+					if(id > 0)
+					{
+						job* bg_job = last_job;
+						while(bg_job)
+						{
+							if(bg_job->pid == id)
+							{					
+								printf("[%i] %i finished %s\n", bg_job->jid, bg_job->pid, bg_job->cmd);
+								remove_job(bg_job);
+								break;
+							}
+						
+							bg_job = bg_job->prev;
+						}
+					}
+				} while (id > 0);
+			}
 		}
 
 		/* Reset the input */
