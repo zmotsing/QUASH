@@ -40,19 +40,34 @@ void remove_job(job* bg_job)
 	}
 }
 
-bool prompt_user(char *arr_input[])
+bool prompt_user(char *arr_input[], int is_redirected)
 {
 	int bytes_in;
 	size_t bsize = 256;
 	char* str_input;
 
-	/* Get the input from the user */
-	printf("[%s]$ ", get_current_dir_name());
-	str_input = (char *) malloc (bsize + 1);
-	bytes_in = getline(&str_input, &bsize, stdin);
+	/* Input is coming from a file */
+	if(is_redirected)
+	{		
+		str_input = (char *) malloc (bsize + 1);
+		bytes_in = getline(&str_input, &bsize, stdin);
+		
+		/* Check for eof and terminate if met */
+		if(bytes_in == EOF)
+			exit(0);
+	}
+	/* Input is coming from the user */
+	else
+	{
+		/* Get the input from the user */
+		printf("[%s]$ ", get_current_dir_name());
+		str_input = (char *) malloc (bsize + 1);
+		bytes_in = getline(&str_input, &bsize, stdin);
 
-	if(bytes_in == -1)
-		printf("Error reading input.\n");
+		/* Check for erroneous input */
+		if(bytes_in == -1)
+			printf("Error reading input.\n");
+	}
 
 	/* Tokenize the string and remove whitespace */
 	int i=0;
@@ -82,11 +97,13 @@ bool prompt_user(char *arr_input[])
 
 int main(int argc, char *argv[], char *envp[])
 {
-	last_job = NULL;
+	/* Will evaluate to true if redirected to a file for input */
+	int is_redirected = isatty(STDIN_FILENO)-1;
+	
 	while(true)
 	{
 		char* input[100];
-		bool bg_proc = prompt_user(input);	
+		bool bg_proc = prompt_user(input, is_redirected);	
 
 		/* quit and exit */
 		if(strcmp(input[0],"quit") == 0 || strcmp(input[0],"exit") == 0)
@@ -131,7 +148,7 @@ int main(int argc, char *argv[], char *envp[])
 
 				exit(0);
 			}
-			/* Parent process */
+/* Parent process */
 			else
 			{
 				/* Wait for child to finish unless running in the background */
@@ -187,3 +204,4 @@ int main(int argc, char *argv[], char *envp[])
 	
 	return 0;
 }
+
