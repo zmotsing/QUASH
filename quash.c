@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <signal.h>
+#include <fcntl.h>
 #include <sys/wait.h>
 
 extern char **environ;
@@ -13,6 +14,12 @@ struct job
 	int pid;
 	char* cmd;
 	job* prev;
+};
+
+struct cmd_cond
+{
+	int out_fd;
+	bool bg_proc;
 };
 
 job* last_job;
@@ -41,7 +48,7 @@ void remove_job(job* bg_job)
 	}
 }
 
-bool prompt_user(char *arr_input[], int is_redirected)
+cmd_cond* prompt_user(char *arr_input[], int is_redirected)
 {
 	int bytes_in;
 	size_t bsize = 256;
@@ -73,27 +80,34 @@ bool prompt_user(char *arr_input[], int is_redirected)
 	/* Tokenize the string and remove whitespace */
 	int i=0;
 	arr_input[i] = strtok(str_input," \n");
+	struct cmd_cond* conditions = (struct cmd_cond *)malloc(sizeof (struct cmd_cond));
 
 	while(arr_input[i] != NULL)
 		arr_input[++i] = strtok(NULL," \n");
 		
 	/* Check to see if this is a background process */
-	bool bg_proc = false;
+	conditions->bg_proc = false;
+	conditions->out_fd = STDOUT_FILENO;
 
 	i=0;
 	while(arr_input[i] != NULL)
 	{
 		if(strcmp(arr_input[i], "&") == 0)
 		{
-			bg_proc = true;
-			arr_input[i] = NULL;	
-			break;
+			conditions->bg_proc = true;
+			arr_input[i] = NULL;
+		}
+		else if(strcmp(arr_input[i], ">") == 0)
+		{
+			conditions->out_fd  = open(arr_input[i+1], O_WRONLY | O_APPEND | O_CREAT, S_IWUSR);
+			arr_input[i] = NULL;
+			arr_input[i+1] = NULL;
 		}
 		
 		i++;
-	}	
+	}
 		
-	return bg_proc;
+	return conditions;
 }
 
 int main(int argc, char *argv[], char *envp[])
@@ -104,7 +118,7 @@ int main(int argc, char *argv[], char *envp[])
 	while(true)
 	{
 		char* input[100];
-		bool bg_proc = prompt_user(input, is_redirected);	
+		struct cmd_cond* conditions = prompt_user(input, is_redirected);	
 
 		/* quit and exit */
 		if(strcmp(input[0],"quit") == 0 || strcmp(input[0],"exit") == 0)
@@ -143,18 +157,22 @@ int main(int argc, char *argv[], char *envp[])
 			/* Child process */
 			if(child_pid == 0)
 			{
+				/* If output has been redirected */
+				dup2(conditions->out_fd, STDOUT_FILENO);
+				
 				/* Execute the command */
 				if(execvpe(input[0], input, environ) == -1)
 					printf("Error: command \"%s\" not on path.\n", input[0]);
-
+				
+				close(conditions->out_fd);
 				exit(0);
 			}
 			/* Parent process */
 			else
-			{
+			{			
 				/* Wait for child to finish unless running in the background */
 				int status = 0;
-				if(!bg_proc)
+				if(!conditions->bg_proc)
 					waitpid(child_pid, &status, 0);
 				else
 				{
@@ -205,4 +223,3 @@ int main(int argc, char *argv[], char *envp[])
 	
 	return 0;
 }
-
