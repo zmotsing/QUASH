@@ -16,6 +16,7 @@ struct job
 	job* prev;
 };
 
+/* Struct for setting input parameters */
 struct cmd_cond
 {
 	int out_fd;
@@ -92,15 +93,17 @@ cmd_cond* prompt_user(char *arr_input[], int is_redirected)
 	i=0;
 	while(arr_input[i] != NULL)
 	{
+		/* Background process */
 		if(strcmp(arr_input[i], "&") == 0)
 		{
 			conditions->bg_proc = true;
 			arr_input[i] = NULL;
 		}
+		/* Output redirection */
 		else if(strcmp(arr_input[i], ">") == 0)
 		{
-			conditions->out_fd  = open(arr_input[i+1], O_WRONLY | O_APPEND | O_CREAT, S_IWUSR);
-			arr_input[i] = NULL;
+			/* Open file or create it if necessary with read/write access */
+			conditions->out_fd  = open(arr_input[i+1], O_RDWR | O_CREAT, 0666);
 			arr_input[i+1] = NULL;
 		}
 		
@@ -141,6 +144,7 @@ int main(int argc, char *argv[], char *envp[])
 			{
 				char* target = input[1];
 			
+				/* If environment variable is referenced */
 				if(target[0] == '$')
 					target = getenv(++target);
 				
