@@ -80,10 +80,10 @@ void prompt_user(char* arr_input[], int is_redirected)
 }
 
 /* Generate conditions */
-void fill_conditions(char* input[], int &out_fd, bool &bg_proc, int &pipe_loc)
+void fill_conditions(char* input[], int &out_fd, bool &bg_proc)
 {
 	int i=0;
-	while(input[i] != NULL)
+	while(input[i])
 	{
 		/* Background process */
 		if(!strcmp(input[i], "&"))
@@ -96,12 +96,6 @@ void fill_conditions(char* input[], int &out_fd, bool &bg_proc, int &pipe_loc)
 		{
 			/* Open file or create it if necessary with read/write access */
 			out_fd  = open(input[i+1], O_RDWR | O_CREAT, 0666);
-			input[i] = NULL;
-		}
-		/* Pipes */
-		else if(!strcmp(input[i], "|"))
-		{
-			pipe_loc = i;
 			input[i] = NULL;
 		}
 		
@@ -217,11 +211,9 @@ void parent(char* input[], pid_t child_pid, bool bg_proc)
 }
 
 /* Execute */
-int execute(char* input[], int &out_fd, bool &bg_proc, int &pipe_loc)
+void execute(char* input[], int &out_fd, bool &bg_proc)
 {
-	if(input[0] == NULL)
-			return 0;
-	else if(!strcmp(input[0],"quit") || !strcmp(input[0],"exit"))
+	if(!strcmp(input[0],"quit") || !strcmp(input[0],"exit"))
 		exit(0);
 	else if(!strcmp(input[0], "cd"))
 		cd(input);
@@ -243,6 +235,73 @@ int execute(char* input[], int &out_fd, bool &bg_proc, int &pipe_loc)
 	}
 }
 
+/* Pipes */
+bool split_pipe(char* input[])
+{
+	/* Check if we need to split */
+	int pipe_loc = 0;
+	int i = 0;
+	while(input[i])
+	{
+		if(!strcmp(input[i], "|"))
+		{
+			pipe_loc = i;
+			break;
+		}
+
+		i++;
+	}
+
+	if(pipe_loc == 0)
+		return false;
+
+	/* Split the data into two pipes */
+	char* left_pipe[1000];
+	char* right_pipe[1000];
+
+	for(i=0; i<pipe_loc; i++)
+		left_pipe[i] = input[i];
+
+	for(i=pipe_loc+1; input[i]; i++)
+		right_pipe[i-pipe_loc-1] = input[i];
+
+	int left_out_fd = STDOUT_FILENO;
+	int right_out_fd = STDOUT_FILENO;
+
+	bool left_bg_proc = false;
+	bool right_bg_proc = false;
+
+	fill_conditions(left_pipe, left_out_fd, left_bg_proc);
+	fill_conditions(right_pipe, right_out_fd, right_bg_proc);
+
+	/* Execute both pipes */
+	int pipe_fd[2];
+	pipe(pipe_fd);
+	pid_t pid_1, pid_2;
+	
+	pid_1 = fork();
+	if(pid_1 == 0)
+	{
+		close(pipe_fd[0]);
+		dup2(pipe_fd[1], STDOUT_FILENO);
+		execute(left_pipe, left_out_fd, left_bg_proc);
+		close(pipe_fd[1]);
+		exit(0);
+	}
+	
+	pid_2 = fork();
+	if(pid_2 == 0)
+	{
+		close(pipe_fd[1]);
+		dup2(pipe_fd[0], STDIN_FILENO);
+		execute(right_pipe, right_out_fd, right_bg_proc);
+		close(pipe_fd[0]);
+		exit(0);
+	}
+
+	return true;
+}
+
 int main(int argc, char *argv[], char *envp[])
 {
 	/* True if redirected to a file for input */
@@ -254,15 +313,21 @@ int main(int argc, char *argv[], char *envp[])
 		char* input[1000];
 		prompt_user(input, is_redirected);
 
+		/* No input */
+		if(input[0] == NULL)
+			return 0;
+
+		/* Check for piping */
+		if(split_pipe(input))
+			continue;
+
 		/* Conditions */
 		int out_fd = STDOUT_FILENO;
 		bool bg_proc = false;
-		int pipe_loc = 0;
-		fill_conditions(input, out_fd, bg_proc, pipe_loc);
+		fill_conditions(input, out_fd, bg_proc);
 
 		/* Execute */
-		if(execute(input, out_fd, bg_proc, pipe_loc))
-			continue;
+		execute(input, out_fd, bg_proc);
 
 		/* Reset the input */
 		int i=0;
