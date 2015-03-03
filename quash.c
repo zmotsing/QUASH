@@ -6,8 +6,6 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 
-extern char **environ;
-
 struct job 
 {
 	int jid;
@@ -132,6 +130,50 @@ int main(int argc, char *argv[], char *envp[])
 		{
 			exit(0);
 		}
+		/* cd */
+		else if(strcmp(input[0], "cd") == 0)
+		{
+			if(input[1] == NULL)
+				chdir(getenv("HOME"));
+			else
+				if(chdir(input[1]) == -1)
+					printf("No such file or directory \"%s\"\n", input[1]);
+		}
+		/* jobs */
+		else if(strcmp(input[0], "jobs") == 0)
+		{
+			struct job* temp = last_job;
+			while(temp)
+			{
+				printf("[%i] %i %s\n", temp->jid, temp->pid, temp->cmd);		
+				temp = temp->prev;
+			}
+		}
+		/* echo */
+		else if(strcmp(input[0], "echo") == 0)
+		{
+			if(input[1] != NULL)
+			{
+				char* target = input[1];
+
+				/* If environment variable is referenced */
+				if(target[0] == '$')
+					target = getenv(++target);
+	
+				printf("%s\n", target);
+			}
+			else
+				printf("\n");
+		}
+		/* set */
+		else if(strcmp(input[0], "set") == 0)
+		{
+			char* target = strtok(input[1], "=");
+			char* vars = strtok(NULL, "");
+			
+			setenv(target, vars, 1);
+		}
+		/* not a special command */
 		else
 		{
 			pid_t child_pid;
@@ -143,47 +185,9 @@ int main(int argc, char *argv[], char *envp[])
 				/* If output has been redirected */
 				dup2(conditions->out_fd, STDOUT_FILENO);
 
-				/* cd */
-				if(strcmp(input[0], "cd") == 0)
-				{
-					if(input[1] == NULL)
-						chdir(getenv("HOME"));
-					else
-						if(chdir(input[1]) == -1)
-							printf("No such file or directory \"%s\"\n", input[1]);
-				}
-				/* jobs */
-				else if(strcmp(input[0], "jobs") == 0)
-				{
-					struct job* temp = last_job;
-					while(temp)
-					{
-						printf("[%i] %i %s\n", temp->jid, temp->pid, temp->cmd);		
-						temp = temp->prev;
-					}
-				}
-				/* echo */
-				else if(strcmp(input[0], "echo") == 0)
-				{
-					if(input[1] != NULL)
-					{
-						char* target = input[1];
-		
-						/* If environment variable is referenced */
-						if(target[0] == '$')
-							target = getenv(++target);
-			
-						printf("%s\n", target);
-					}
-					else
-						printf("\n");
-				}
 				/* Execute the command */
-				else
-				{	
-					if(execvpe(input[0], input, environ) == -1)
-						printf("Error: command \"%s\" not on path.\n", input[0]);
-				}	
+				if(execvpe(input[0], input, environ) == -1)
+					printf("Error: command \"%s\" not on path.\n", input[0]);
 			
 				close(conditions->out_fd);
 				exit(0);
