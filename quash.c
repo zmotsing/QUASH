@@ -123,35 +123,14 @@ int main(int argc, char *argv[], char *envp[])
 		char* input[100];
 		struct cmd_cond* conditions = prompt_user(input, is_redirected);	
 
+		if(input[0] == NULL)
+		{
+			continue;
+		}
 		/* quit and exit */
-		if(strcmp(input[0],"quit") == 0 || strcmp(input[0],"exit") == 0)
+		else if(strcmp(input[0],"quit") == 0 || strcmp(input[0],"exit") == 0)
 		{
 			exit(0);
-		}
-		/* cd */
-		else if(strcmp(input[0], "cd") == 0)
-		{
-			if(input[1] == NULL)
-				chdir(getenv("HOME"));
-			else
-				if(chdir(input[1]) == -1)
-					printf("No such file or directory \"%s\"\n", input[1]);
-		}
-		/* echo */
-		else if(strcmp(input[0], "echo") == 0)
-		{
-			if(input[1] != NULL)
-			{
-				char* target = input[1];
-			
-				/* If environment variable is referenced */
-				if(target[0] == '$')
-					target = getenv(++target);
-				
-				printf("%s\n", target);
-			}
-			else
-				printf("\n");
 		}
 		else
 		{
@@ -163,11 +142,49 @@ int main(int argc, char *argv[], char *envp[])
 			{
 				/* If output has been redirected */
 				dup2(conditions->out_fd, STDOUT_FILENO);
-				
+
+				/* cd */
+				if(strcmp(input[0], "cd") == 0)
+				{
+					if(input[1] == NULL)
+						chdir(getenv("HOME"));
+					else
+						if(chdir(input[1]) == -1)
+							printf("No such file or directory \"%s\"\n", input[1]);
+				}
+				/* jobs */
+				else if(strcmp(input[0], "jobs") == 0)
+				{
+					struct job* temp = last_job;
+					while(temp)
+					{
+						printf("[%i] %i %s\n", temp->jid, temp->pid, temp->cmd);		
+						temp = temp->prev;
+					}
+				}
+				/* echo */
+				else if(strcmp(input[0], "echo") == 0)
+				{
+					if(input[1] != NULL)
+					{
+						char* target = input[1];
+		
+						/* If environment variable is referenced */
+						if(target[0] == '$')
+							target = getenv(++target);
+			
+						printf("%s\n", target);
+					}
+					else
+						printf("\n");
+				}
 				/* Execute the command */
-				if(execvpe(input[0], input, environ) == -1)
-					printf("Error: command \"%s\" not on path.\n", input[0]);
-				
+				else
+				{	
+					if(execvpe(input[0], input, environ) == -1)
+						printf("Error: command \"%s\" not on path.\n", input[0]);
+				}	
+			
 				close(conditions->out_fd);
 				exit(0);
 			}
@@ -202,7 +219,7 @@ int main(int argc, char *argv[], char *envp[])
 					id = waitpid(-1, &status, WNOHANG);
 					if(id > 0)
 					{
-						job* bg_job = last_job;
+						struct job* bg_job = last_job;
 						while(bg_job)
 						{
 							if(bg_job->pid == id)
