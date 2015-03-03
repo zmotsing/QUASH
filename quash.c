@@ -77,6 +77,13 @@ void prompt_user(char* arr_input[], int is_redirected)
 
 	while(arr_input[i] != NULL)
 		arr_input[++i] = strtok(NULL," \n");
+		
+	/* Replace env vars with their values */
+	for(i = 0; arr_input[i] != NULL; i++)
+	{
+		if(arr_input[i][0] == '$')
+			arr_input[i] = getenv(++arr_input[i]);
+	}
 }
 
 /* Generate conditions */
@@ -219,8 +226,6 @@ void execute(char* input[], int &out_fd, bool &bg_proc)
 		cd(input);
 	else if(!strcmp(input[0], "jobs"))
 		jobs(input);
-	else if(!strcmp(input[0], "echo"))
-		echo(input);
 	else if(!strcmp(input[0], "set"))
 		set(input);
 	else
