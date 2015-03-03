@@ -216,13 +216,42 @@ void parent(char* input[], pid_t child_pid, bool bg_proc)
 	} while (id > 0);
 }
 
+/* Execute */
+int execute(char* input[], int &out_fd, bool &bg_proc, int &pipe_loc)
+{
+	if(input[0] == NULL)
+			return 0;
+	else if(!strcmp(input[0],"quit") || !strcmp(input[0],"exit"))
+		exit(0);
+	else if(!strcmp(input[0], "cd"))
+		cd(input);
+	else if(!strcmp(input[0], "jobs"))
+		jobs(input);
+	else if(!strcmp(input[0], "echo"))
+		echo(input);
+	else if(!strcmp(input[0], "set"))
+		set(input);
+	else
+	{
+		pid_t child_pid;
+		child_pid = fork();
+
+		if(child_pid == 0)
+			child(input, out_fd);
+		else
+			parent(input, child_pid, bg_proc);
+	}
+}
+
 int main(int argc, char *argv[], char *envp[])
 {
+	/* True if redirected to a file for input */
+	int is_redirected = isatty(STDIN_FILENO)-1;
+
 	while(true)
 	{
 		/* User input */
 		char* input[1000];
-		int is_redirected = isatty(STDIN_FILENO)-1;		
 		prompt_user(input, is_redirected);
 
 		/* Conditions */
@@ -232,28 +261,8 @@ int main(int argc, char *argv[], char *envp[])
 		fill_conditions(input, out_fd, bg_proc, pipe_loc);
 
 		/* Execute */
-		if(input[0] == NULL)
+		if(execute(input, out_fd, bg_proc, pipe_loc))
 			continue;
-		else if(!strcmp(input[0],"quit") || !strcmp(input[0],"exit"))
-			exit(0);
-		else if(!strcmp(input[0], "cd"))
-			cd(input);
-		else if(!strcmp(input[0], "jobs"))
-			jobs(input);
-		else if(!strcmp(input[0], "echo"))
-			echo(input);
-		else if(!strcmp(input[0], "set"))
-			set(input);
-		else
-		{
-			pid_t child_pid;
-			child_pid = fork();
-
-			if(child_pid == 0)
-				child(input, out_fd);
-			else
-				parent(input, child_pid, bg_proc);
-		}
 
 		/* Reset the input */
 		int i=0;
