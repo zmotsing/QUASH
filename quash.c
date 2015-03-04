@@ -87,7 +87,7 @@ void prompt_user(char* arr_input[], int is_redirected)
 }
 
 /* Generate conditions */
-void fill_conditions(char* input[], int &out_fd, bool &bg_proc)
+void fill_conditions(char* input[], int &in_fd, int &out_fd, bool &bg_proc)
 {
 	int i=0;
 	while(input[i])
@@ -96,6 +96,13 @@ void fill_conditions(char* input[], int &out_fd, bool &bg_proc)
 		if(!strcmp(input[i], "&"))
 		{
 			bg_proc = true;
+			input[i] = NULL;
+		}
+		/* Input redirection */
+		else if(!strcmp(input[i], "<"))
+		{
+			/* Open file or create it if necessary with read/write access */
+			in_fd  = open(input[i+1], O_RDWR | O_CREAT, 0666);
 			input[i] = NULL;
 		}
 		/* Output redirection */
@@ -140,8 +147,12 @@ void set(char* input[])
 }
 
 /* Child Process */
-void child(char* input[], int out_fd)
+void child(char* input[], int in_fd, int out_fd)
 {
+	
+	/* If input has been redirected */
+	dup2(in_fd, STDIN_FILENO);
+	
 	/* If output has been redirected */
 	dup2(out_fd, STDOUT_FILENO);
 
@@ -149,6 +160,7 @@ void child(char* input[], int out_fd)
 	if(execvpe(input[0], input, environ) == -1)
 		printf("Error: command \"%s\" not on path.\n", input[0]);
 
+	close(in_fd);
 	close(out_fd);
 	exit(0);
 }
@@ -201,7 +213,7 @@ void parent(char* input[], pid_t child_pid, bool bg_proc)
 }
 
 /* Execute */
-void execute(char* input[], int &out_fd, bool &bg_proc)
+void execute(char* input[], int &in_fd, int &out_fd, bool &bg_proc)
 {
 	if(!strcmp(input[0],"quit") || !strcmp(input[0],"exit"))
 		exit(0);
@@ -217,7 +229,7 @@ void execute(char* input[], int &out_fd, bool &bg_proc)
 		child_pid = fork();
 
 		if(child_pid == 0)
-			child(input, out_fd);
+			child(input, in_fd, out_fd);
 		else
 			parent(input, child_pid, bg_proc);
 	}
@@ -253,14 +265,18 @@ bool split_pipe(char* input[])
 	for(i=pipe_loc+1; input[i]; i++)
 		right_pipe[i-pipe_loc-1] = input[i];
 
+
+	int left_in_fd = STDIN_FILENO;
+	int right_in_fd = STDIN_FILENO;
+	
 	int left_out_fd = STDOUT_FILENO;
 	int right_out_fd = STDOUT_FILENO;
 
 	bool left_bg_proc = false;
 	bool right_bg_proc = false;
 
-	fill_conditions(left_pipe, left_out_fd, left_bg_proc);
-	fill_conditions(right_pipe, right_out_fd, right_bg_proc);
+	fill_conditions(left_pipe, left_in_fd, left_out_fd, left_bg_proc);
+	fill_conditions(right_pipe, right_in_fd, right_out_fd, right_bg_proc);
 
 	/* Execute both pipes */
 	int pipe_fd[2];
@@ -272,7 +288,7 @@ bool split_pipe(char* input[])
 	{
 		close(pipe_fd[0]);
 		dup2(pipe_fd[1], STDOUT_FILENO);
-		execute(left_pipe, left_out_fd, left_bg_proc);
+		execute(left_pipe, left_in_fd, left_out_fd, left_bg_proc);
 		close(pipe_fd[1]);
 		exit(0);
 	}
@@ -282,7 +298,7 @@ bool split_pipe(char* input[])
 	{
 		close(pipe_fd[1]);
 		dup2(pipe_fd[0], STDIN_FILENO);
-		execute(right_pipe, right_out_fd, right_bg_proc);
+		execute(right_pipe, right_in_fd, right_out_fd, right_bg_proc);
 		close(pipe_fd[0]);
 		exit(0);	
 	}
@@ -317,12 +333,13 @@ int main(int argc, char *argv[], char *envp[])
 			continue;
 
 		/* Conditions */
+		int in_fd = STDIN_FILENO;
 		int out_fd = STDOUT_FILENO;
 		bool bg_proc = false;
-		fill_conditions(input, out_fd, bg_proc);
+		fill_conditions(input, in_fd, out_fd, bg_proc);
 
 		/* Execute */
-		execute(input, out_fd, bg_proc);
+		execute(input, in_fd, out_fd, bg_proc);
 
 		/* Reset the input */
 		int i=0;
