@@ -130,23 +130,6 @@ void jobs(char* input[])
 	}
 }
 
-/* echo */
-void echo(char* input[])
-{
-	if(input[1] != NULL)
-	{
-		char* target = input[1];
-
-		/* If environment variable is referenced */
-		if(target[0] == '$')
-			target = getenv(++target);
-
-		printf("%s\n", target);
-	}
-	else
-		printf("\n");
-}
-
 /* set */
 void set(char* input[])
 {
