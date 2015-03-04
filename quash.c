@@ -276,7 +276,7 @@ bool split_pipe(char* input[])
 		close(pipe_fd[1]);
 		exit(0);
 	}
-	
+
 	pid_2 = fork();
 	if(pid_2 == 0)
 	{
@@ -284,8 +284,15 @@ bool split_pipe(char* input[])
 		dup2(pipe_fd[0], STDIN_FILENO);
 		execute(right_pipe, right_out_fd, right_bg_proc);
 		close(pipe_fd[0]);
-		exit(0);
+		exit(0);	
 	}
+	
+	close(pipe_fd[0]);
+	close(pipe_fd[1]);
+
+	int status = 0;
+	waitpid(pid_1, &status, 0);
+	waitpid(pid_2, &status, 0);
 
 	return true;
 }
